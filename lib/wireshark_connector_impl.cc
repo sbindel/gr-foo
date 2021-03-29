@@ -28,13 +28,14 @@ using namespace gr::foo;
 
 #define dout d_debug && std::cout
 
-wireshark_connector_impl::wireshark_connector_impl(LinkType type, bool debug) :
+wireshark_connector_impl::wireshark_connector_impl(LinkType type, bool debug, bool snrToDouble) :
 	block ("wireshark_connector",
 			gr::io_signature::make(0, 0, 0),
 			gr::io_signature::make(1, 1, sizeof(uint8_t))),
 			d_msg_offset(0),
 			d_debug(debug),
-			d_link(type) {
+			d_link(type),
+			d_snr_double(snrToDouble) {
 
 	message_port_register_in(pmt::mp("in"));
 
@@ -90,24 +91,45 @@ wireshark_connector_impl::handle_pdu(pmt::pmt_t pdu) {
 		if(pmt::is_uint64(encoding)) {
 			rate = encoding_to_rate(pmt::to_uint64(encoding));
 		}
-
-		int snr = 42;
-		if(pmt::dict_has_key(dict, pmt::mp("snr"))) {
-			pmt::pmt_t s = pmt::dict_ref(dict, pmt::mp("snr"), pmt::PMT_NIL);
-			if(pmt::is_number(s)) {
-				snr = std::round(pmt::to_double(s));
-			}
-		}
-
+		
+		// get SNR value either as a float or a natural number
 		uint8_t signal = 0;
 		uint8_t noise = 0;
-
-		if(snr >= 0) {
-			signal = snr;
-			noise = 0;
-		} else {
-			signal = 0;
-			noise = -1 * snr;
+		if (d_snr_double == false) {
+			int snr = 42;
+			if(pmt::dict_has_key(dict, pmt::mp("snr"))) {
+				pmt::pmt_t s = pmt::dict_ref(dict, pmt::mp("snr"), pmt::PMT_NIL);
+				if(pmt::is_number(s)) {
+					snr = std::round(pmt::to_double(s));
+				}
+			}
+			if(snr >= 0) {
+				signal = snr;
+				noise = 0;
+			} else {
+				signal = 0;
+				noise = -1 * snr;
+			}
+		}
+		else {
+			double snr = 42.0;
+			double snr_number = 0.0;
+			double snr_floating = 0.0;
+			if(pmt::dict_has_key(dict, pmt::mp("snr"))) {
+				pmt::pmt_t s = pmt::dict_ref(dict, pmt::mp("snr"), pmt::PMT_NIL);
+				if(pmt::is_number(s)) {
+					snr = pmt::to_double(s);
+					snr_floating  = std::modf(snr, &snr_number);
+				}
+			}
+			if(snr >= 0) {
+				signal = snr_number;
+				noise = std::round(snr_floating*100);
+			} 
+			else {
+				signal = (snr_number*-1) ;
+				noise = std::round(snr_floating*100);
+			}
 		}
 
 		// radiotap header
@@ -221,6 +243,6 @@ wireshark_connector_impl::general_work(int noutput, gr_vector_int& ninput_items,
 }
 
 wireshark_connector::sptr
-wireshark_connector::make(LinkType type, bool debug) {
-	return gnuradio::get_initial_sptr(new wireshark_connector_impl(type, debug));
+wireshark_connector::make(LinkType type, bool debug, bool snrToDouble) {
+	return gnuradio::get_initial_sptr(new wireshark_connector_impl(type, debug, snrToDouble));
 }

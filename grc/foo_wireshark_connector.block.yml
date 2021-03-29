@@ -17,6 +17,12 @@ parameters:
     default: 'False'
     options: ['True', 'False']
     option_labels: [Enable, Disable]
+-   id: snrToDouble
+    label: SNR floating value
+    dtype: bool
+    default: 'False'
+    options: ['True', 'False']
+    option_labels: [Enable, Disable]    
 
 inputs:
 -   domain: message
@@ -29,6 +35,6 @@ outputs:
 
 templates:
     imports: import foo
-    make: foo.wireshark_connector(${tech}, ${debug})
+    make: foo.wireshark_connector(${tech}, ${debug}, ${snrToDouble})
 
 file_format: 1

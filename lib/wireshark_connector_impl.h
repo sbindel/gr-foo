@@ -33,8 +33,9 @@ namespace foo {
 			int         d_msg_len;
 			char*       d_msg;
 			LinkType    d_link;
+			bool        d_snr_double;
 		public:
-			wireshark_connector_impl(LinkType type, bool debug);
+			wireshark_connector_impl(LinkType type, bool debug, bool snrToDouble);
 			int general_work(int noutput, gr_vector_int& ninput_items,
 					gr_vector_const_void_star& input_items,
 					gr_vector_void_star& output_items );
